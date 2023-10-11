@@ -1,15 +1,19 @@
 import cv2
 import dlib
 import math
+import os
 from datetime import datetime
 import tkinter as tk
-from tkinter import messagebox, font
+from tkinter import messagebox, ttk
+import ttkthemes
 from PIL import Image, ImageTk
 
 BLINK_RATIO_THRESHOLD = 4
 BLINK_DURATION = 60  # Duration in seconds
 COOLDOWN_TIME = 1.5  # Cooldown time in seconds
 MIN_BLINK_COUNT = 15
+
+blink_history = []  # List to store history data
 
 def midpoint(point1, point2):
     return (point1.x + point2.x) / 2, (point1.y + point2.y) / 2
@@ -41,11 +45,25 @@ def get_blink_ratio(eye_points, facial_landmarks):
 
     return ratio
 
+def update_history_table():
+    current_time = datetime.now()
+    history_item = {
+        "Start Time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
+        "End Time": current_time.strftime("%Y-%m-%d %H:%M:%S"),
+        "Duration": f"{(current_time - start_time).total_seconds():.2f}s",
+        "Blink Count": blink_counter,
+    }
+    blink_history.append(history_item)
+    history_table.insert("", "end", values=(history_item["Start Time"], history_item["End Time"], history_item["Duration"], history_item["Blink Count"]))
+    history_table.see(history_table.get_children()[-1])  # Scroll to the last item
+
 # OpenCV setup
 cap = cv2.VideoCapture(0)
 
 detector = dlib.get_frontal_face_detector()
+
 predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
+
 left_eye_landmarks = [36, 37, 38, 39, 40, 41]
 right_eye_landmarks = [42, 43, 44, 45, 46, 47]
 
@@ -57,7 +75,8 @@ def show_popup_message(message):
     root = tk.Tk()
     root.withdraw()  # Hide the main window
     messagebox.showinfo("Blink Alert", message)
-    root.destroy()
+    root.destroy()    
+    update_history_table()
 
 def update_frame():
     global last_blink_time, blink_counter, start_time  # Declare last_blink_time and blink_counter as global variables
@@ -65,9 +84,9 @@ def update_frame():
     ret, frame = cap.read()
     if ret:
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        
+
         frame = cv2.GaussianBlur(frame, (5, 5), 0)
-        
+
         photo = ImageTk.PhotoImage(image=Image.fromarray(frame))
         label.config(image=photo)
         label.image = photo
@@ -89,8 +108,7 @@ def update_frame():
             if elapsed_time >= BLINK_DURATION:
                 # Calculate and print the average blink count
                 average_blinks = blink_counter / BLINK_DURATION
-                print(f"Average Blinks in {BLINK_DURATION} seconds: {average_blinks:.2f}")
-
+                
                 # Reset elapsed time and blink count
                 start_time = current_time
 
@@ -127,6 +145,8 @@ def start_capture():
 
 def stop_capture():
     global cap, paused
+    if start_time is not None:
+        update_history_table()
     cap.release()
     paused = True
     label.config(image=None)
@@ -134,31 +154,54 @@ def stop_capture():
 root = tk.Tk()
 root.title("Blink Detector")
 
+notebook = ttk.Notebook(root)
+notebook.pack(fill="both", expand=True)
+
+tab1 = ttk.Frame(notebook)
+notebook.add(tab1, text="Main")
+             
+style = ttkthemes.ThemedStyle(root)
+style.theme_use("arc")
+
 window_width = 640
-window_height = 480
+window_height = 580
 root.geometry(f"{window_width}x{window_height}")
 
-label_width = 520
-label_height = 400
-label = tk.Label(root, width=label_width, height=label_height)
-label.pack()
-
-blink_label = tk.Label(root, text="Blink Count: 0")
+blink_label = ttk.Label(root, text="Blink Count: 0")
 blink_label.pack()
 
-elapsed_time_label = tk.Label(root, text="Elapsed Time: 0.00s")
+elapsed_time_label = ttk.Label(root, text="Elapsed Time: 0.00s")
 elapsed_time_label.pack()
 
 button_width = 20
 button_height = 4
 
-button_font_style = font.Font(size=14)
-
-start_button = tk.Button(root, text="Start", command=start_capture, width=button_width, height=button_height, font=button_font_style, fg="green")
-stop_button = tk.Button(root, text="Stop", command=stop_capture, width=button_width, height=button_height, font=button_font_style, fg="red")
+start_button = ttk.Button(root, text="Start", command=start_capture, width=button_width, style="TButton")
+stop_button = ttk.Button(root, text="Stop", command=stop_capture, width=button_width, style="TButton")
 
 start_button.pack(side=tk.LEFT)
 stop_button.pack(side=tk.RIGHT)
+
+label_width = 480
+label = ttk.Label(tab1, text="Main", width=label_width)
+label.pack()
+
+tab2 = ttk.Frame(notebook)
+notebook.add(tab2, text="History")
+
+history_table = ttk.Treeview(tab2, columns=("Start Time", "End Time", "Duration", "Blink Count"), show="headings")
+
+history_table.column("Start Time", anchor="center", width=100)
+history_table.column("End Time", anchor="center", width=100)
+history_table.column("Duration", anchor="center", width=80)
+history_table.column("Blink Count", anchor="center", width=80)
+
+history_table.heading("Start Time", text="Start Time", anchor="center")
+history_table.heading("End Time", text="End Time", anchor="center")
+history_table.heading("Duration", text="Duration", anchor="center")
+history_table.heading("Blink Count", text="Blink Count", anchor="center")
+
+history_table.pack(fill="both", expand=True)
 
 paused = False
 
