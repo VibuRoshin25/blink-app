@@ -15,14 +15,11 @@ MIN_BLINK_COUNT = 15
 
 blink_history = []  # List to store history data
 
-
 def midpoint(point1, point2):
     return (point1.x + point2.x) / 2, (point1.y + point2.y) / 2
 
-
 def euclidean_distance(point1, point2):
     return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
-
 
 def get_blink_ratio(eye_points, facial_landmarks):
     corner_left = (
@@ -43,11 +40,8 @@ def get_blink_ratio(eye_points, facial_landmarks):
 
     horizontal_length = euclidean_distance(corner_left, corner_right)
     vertical_length = euclidean_distance(center_top, center_bottom)
-
     ratio = horizontal_length / vertical_length
-
     return ratio
-
 
 def update_history_table():
     current_time = datetime.now()
@@ -75,10 +69,8 @@ def update_history_table():
     history_table.see(history_table.get_children()[-1])
     save_history_to_csv()
 
-
 def clear_history_table():
     history_table.delete(*history_table.get_children())
-
 
 def calculate_blink_ratio():
     if BLINK_DURATION == 0:
@@ -101,9 +93,9 @@ def save_history_to_csv():
         writer.writeheader()
         writer.writerows(blink_history)
 
-
 def load_history_from_csv():
     try:
+        full_history_table.delete(*full_history_table.get_children())
         with open("blink-history.csv", mode="r") as file:
             reader = csv.DictReader(file)
             for row in reader:
